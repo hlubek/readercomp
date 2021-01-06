@@ -12,7 +12,7 @@ type readResult struct {
 	err  error
 }
 
-var ioErr = errors.New("test IO error")
+var errTest = errors.New("test IO error")
 
 func TestEqual(t *testing.T) {
 	tests := []struct {
@@ -33,7 +33,7 @@ func TestEqual(t *testing.T) {
 		},
 		{
 			name:    "single read, r1 err",
-			r1:      []readResult{{bytes.Repeat([]byte{'v'}, 100), ioErr}},
+			r1:      []readResult{{bytes.Repeat([]byte{'v'}, 100), errTest}},
 			r2:      []readResult{{bytes.Repeat([]byte{'v'}, 100), io.EOF}},
 			bufSize: 8192,
 			want:    false,
@@ -42,7 +42,7 @@ func TestEqual(t *testing.T) {
 		{
 			name:    "single read, r2 err",
 			r1:      []readResult{{bytes.Repeat([]byte{'v'}, 100), io.EOF}},
-			r2:      []readResult{{bytes.Repeat([]byte{'v'}, 100), ioErr}},
+			r2:      []readResult{{bytes.Repeat([]byte{'v'}, 100), errTest}},
 			bufSize: 8192,
 			want:    false,
 			wantErr: true,
@@ -134,7 +134,7 @@ func TestEqual(t *testing.T) {
 			r1: []readResult{
 				{bytes.Repeat([]byte{'v'}, 45), nil},
 				{bytes.Repeat([]byte{'v'}, 100), nil},
-				{bytes.Repeat([]byte{'v'}, 51), ioErr},
+				{bytes.Repeat([]byte{'v'}, 51), errTest},
 			},
 			r2: []readResult{
 				{bytes.Repeat([]byte{'v'}, 31), nil},
@@ -151,13 +151,13 @@ func TestEqual(t *testing.T) {
 			r1: []readResult{
 				{bytes.Repeat([]byte{'v'}, 45), nil},
 				{bytes.Repeat([]byte{'v'}, 100), nil},
-				{bytes.Repeat([]byte{'v'}, 51),  io.EOF},
+				{bytes.Repeat([]byte{'v'}, 51), io.EOF},
 			},
 			r2: []readResult{
 				{bytes.Repeat([]byte{'v'}, 31), nil},
 				{bytes.Repeat([]byte{'v'}, 27), nil},
 				{bytes.Repeat([]byte{'v'}, 138), nil},
-				{nil, ioErr},
+				{nil, errTest},
 			},
 			bufSize: 64,
 			want:    false,
@@ -210,9 +210,9 @@ func (f *fixtureReader) Read(buf []byte) (n int, err error) {
 		// Fully copied result data, update results slice for next result
 		*f = (*f)[1:]
 		return m, res.err
-	} else {
-		// Partially copied, update current result slice, do not yet return any error!
-		(*f)[0].data = (*f)[0].data[m:]
-		return m, nil
 	}
+
+	// Partially copied, update current result slice, do not yet return any error!
+	(*f)[0].data = (*f)[0].data[m:]
+	return m, nil
 }
