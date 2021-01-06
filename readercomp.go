@@ -23,7 +23,7 @@ func Equal(r1, r2 io.Reader, bufSize int) (bool, error) {
 			return false, err2
 		}
 
-		// Catch up with r1
+		// Catch up with r2
 		for n1 < n2 {
 			var more int
 			more, err1 = r1.Read(b1[n1:n2])
@@ -34,7 +34,7 @@ func Equal(r1, r2 io.Reader, bufSize int) (bool, error) {
 				return false, err1
 			}
 		}
-		// Catch up with r2
+		// Catch up with r1
 		for n2 < n1 {
 			var more int
 			more, err2 = r2.Read(b2[n2:n1])
@@ -92,5 +92,6 @@ func FilesEqual(name1, name2 string) (bool, error) {
 	}
 	defer f2.Close()
 
+	// 64 KiB buffers seem to be most performant with larger files
 	return Equal(f1, f2, 64*1024)
 }
