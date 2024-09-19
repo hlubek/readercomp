@@ -7,15 +7,19 @@ import (
 	"os"
 )
 
-// Equal tests two finite reader streams for equality by comparing batches up to bufSize
+// Equal compares two io.Reader instances efficiently
 func Equal(r1, r2 io.Reader, bufSize int) (bool, error) {
-	b1 := make([]byte, bufSize)
-	b2 := make([]byte, bufSize)
+	if bufSize <= 0 {
+		bufSize = 4096 // Default buffer size if not specified or invalid
+	}
+	buf1 := make([]byte, bufSize)
+	buf2 := make([]byte, bufSize)
 
 	for {
-		n1, err1 := r1.Read(b1)
-		n2, err2 := r2.Read(b2)
+		n1, err1 := readFull(r1, buf1)
+		n2, err2 := readFull(r2, buf2)
 
+		// Check for non-EOF errors first
 		if err1 != nil && err1 != io.EOF {
 			return false, err1
 		}
@@ -23,41 +27,28 @@ func Equal(r1, r2 io.Reader, bufSize int) (bool, error) {
 			return false, err2
 		}
 
-		// Catch up with r2
-		for n1 < n2 {
-			var more int
-			more, err1 = r1.Read(b1[n1:n2])
-			n1 += more
-			if err1 == io.EOF {
-				break
-			} else if err1 != nil {
-				return false, err1
-			}
-		}
-		// Catch up with r1
-		for n2 < n1 {
-			var more int
-			more, err2 = r2.Read(b2[n2:n1])
-			n2 += more
-			if err2 == io.EOF {
-				break
-			} else if err2 != nil {
-				return false, err2
-			}
-		}
-
-		if !bytes.Equal(b1[:n1], b2[:n2]) {
+		// Compare the read data
+		if n1 != n2 || !bytes.Equal(buf1[:n1], buf2[:n2]) {
 			return false, nil
 		}
 
-		// We asserted before that err1 / err2 are either nil or io.EOF - if both are io.EOF we are finished
+		// Handle EOF cases
 		if err1 == io.EOF && err2 == io.EOF {
-			return true, nil
+			return true, nil // Both readers reached EOF simultaneously
 		}
-
-		// Continue anyway, either err1 or err2 could be io.EOF and the other nil, which is allowed and could settle
-		// on the next call to Read
+		if err1 == io.EOF || err2 == io.EOF {
+			return false, nil // One reader reached EOF before the other
+		}
 	}
+}
+
+// readFull reads from r into buf, handling short reads
+func readFull(r io.Reader, buf []byte) (int, error) {
+	n, err := io.ReadFull(r, buf)
+	if err == io.ErrUnexpectedEOF {
+		return n, io.EOF
+	}
+	return n, err
 }
 
 // FilesEqual tests two files for equality (same content)
